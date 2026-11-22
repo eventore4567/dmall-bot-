@@ -202,7 +202,7 @@ class ConfirmView(discord.ui.View):
             self.confirmed = False
             self.bot.active_campaigns.pop(guild.id, None)
             return await interaction.response.send_message(
-                "SentriX a besoin de la permission Envoyer des messages dans ce salon.",
+                "Le bot a besoin de la permission Envoyer des messages dans ce salon.",
                 ephemeral=True,
             )
 
