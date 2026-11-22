@@ -17,22 +17,14 @@ jobs:
         run: python -m pip install -r requirements.txt
       - name: Syntaxe Python
         run: python -m py_compile bot.py
-      - name: Test stockage des consentements
+      - name: Test des commandes et du rôle opt-in
         run: |
           python - <<'PY'
-          from pathlib import Path
-          from tempfile import TemporaryDirectory
-          from bot import Storage
-          with TemporaryDirectory() as directory:
-              db = Storage(Path(directory) / "storage.sqlite3")
-              assert db.subscribers(123) == []
-              assert db.subscribe(123, 456)
-              assert not db.subscribe(123, 456)
-              assert db.subscribed(123, 456)
-              assert db.subscribers(123) == [456]
-              assert db.unsubscribe(123, 456)
-              assert not db.subscribed(123, 456)
-              db.save_panel(123, 100, 200)
-              assert db.panel_id(123, 100) == 200
+          import bot
+          assert bot.bot.tree.get_command("damall") is not None
+          assert bot.get_opt_in_role(type("Guild", (), {"roles": []})()) is None
+          assert "DM Annonces" == bot.ROLE_NAME
+          assert not hasattr(bot, "SignupView")
+          assert not hasattr(bot, "AdminView")
           print("Tests OK")
           PY
