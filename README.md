@@ -1,64 +1,53 @@
-# DM All — bot Discord
+# DM All — Bot Discord
 
-Bot autonome de diffusion d'annonces privées, avec une seule commande slash : **/damall**.
+Bot autonome utilisant **une seule commande : /damall**.
 
 ## Fonctionnement
 
-- Un administrateur lance **/damall**.
-- Le bouton **Publier le panneau d'inscription** place un panneau dans le salon. Les membres choisissent librement de recevoir les MP ou de se désinscrire.
-- **Rédiger un DM** ouvre un formulaire pour écrire l'annonce.
-- Le bot présente un aperçu et le nombre de membres inscrits. **Confirmer l'envoi** est obligatoire.
-- Un message de progression s'affiche dans le salon : membres traités / membres du serveur, MP envoyés, ignorés et échecs. **Arrêter l'envoi** permet au staff d'interrompre la campagne.
+- Un administrateur lance **/damall** : un formulaire de rédaction s'ouvre directement.
+- Il écrit son message, puis voit un aperçu et le nombre de destinataires.
+- **Confirmer l'envoi** lance l'annonce. **Annuler** ne fait rien.
+- Une progression publique affiche les membres traités / membres du serveur, les MP envoyés, les personnes ignorées et les échecs.
+- **Arrêter l'envoi** interrompt les messages suivants.
 
-Les membres non inscrits, les comptes ayant quitté le serveur, les bots et les MP fermés sont ignorés. Une désinscription est prise en compte même pendant une campagne. Le bot n'essaie pas de contourner les limites ou protections de Discord.
+Il n'existe plus de bouton ou de panneau d'inscription dans le bot.
 
-Le bot est volontairement limité aux envois consentis. Discord interdit les messages privés de masse non sollicités.
+## Destinataires
 
-## Déploiement Railway
+Le bot envoie seulement aux utilisateurs qui ont **volontairement choisi** le rôle Discord **DM Annonces**. Le rôle peut être proposé via les rôles à choisir de SentriX ou l'onboarding de Discord.
 
-Ce dépôt contient le point d'entrée **bot.py**, les dépendances **requirements.txt**, et **railway.json** avec la commande de démarrage.
+Les membres sans ce rôle, les bots, les utilisateurs ayant quitté le serveur, les personnes ayant retiré le rôle et les MP fermés sont comptés comme ignorés.
 
-Dans Railway, sélectionne le service lié au dépôt eventore4567/dmall-bot- et ajoute les variables suivantes dans l'onglet **Variables** :
+Cette règle évite les MP de masse non sollicités et permet à chacun de se retirer simplement en retirant le rôle. Le bot n'essaie pas de contourner les protections ou limites de Discord.
 
-| Variable | Valeur | Obligatoire |
+## Variables Railway
+
+| Variable | Valeur | Nécessaire |
 | --- | --- | --- |
-| DISCORD_TOKEN | Token du bot créé sur https://discord.com/developers/applications | Oui, secret |
-| DB_PATH | /data/damall.sqlite3 | Recommandé |
-| GUILD_ID | ID numérique du serveur Discord où synchroniser la commande immédiatement | Facultatif |
+| DISCORD_TOKEN | Token du bot Discord (secret) | Oui |
+| ENABLE_MEMBER_INTENT | 1 | Oui, après activation dans le portail Discord |
+| DM_OPT_IN_ROLE_NAME | DM Annonces | Optionnel (nom par défaut) |
+| GUILD_ID | ID du serveur pour synchroniser la commande rapidement | Optionnel |
 
-**Important : ne mets jamais le token dans GitHub, dans une capture ni dans le chat.** Ajoute-le uniquement comme variable secrète Railway.
-
-Ajoute un volume Railway persistant monté sur **/data** pour conserver les inscriptions au fil des redéploiements. Sans volume, le fichier SQLite créé localement peut disparaître lors d'un nouveau déploiement.
-
-Une fois le token ajouté et le service déployé, consulte **Railway > Deployments > Logs**. La ligne "Bot connecté" indique que la connexion Discord fonctionne.
+L'ancienne variable DB_PATH et l'ancien volume Railway ne sont plus utilisés par cette version. Ils peuvent rester en place ; les données précédentes ne sont ni effacées ni utilisées pour cibler des utilisateurs.
 
 ## Configuration Discord
 
-Dans le portail développeur Discord :
+1. Ouvre https://discord.com/developers/applications et sélectionne ton application.
+2. Dans **Bot > Privileged Gateway Intents**, active **Server Members Intent**.
+3. Dans Railway, définis **ENABLE_MEMBER_INTENT=1**.
+4. Crée un rôle serveur nommé exactement **DM Annonces** (ou configure DM_OPT_IN_ROLE_NAME).
+5. Propose ce rôle à l'auto-attribution ; il ne faut pas le donner automatiquement à tout le serveur.
+6. Assure-toi que le bot peut envoyer des messages dans le salon utilisé.
+7. Lance **/damall** avec un compte administrateur.
 
-1. Crée une application et un bot.
-2. Copie son token dans la variable Railway **DISCORD_TOKEN**.
-3. Dans l'installateur de l'application, ajoute les scopes **bot** et **applications.commands**.
-4. Invite le bot sur ton serveur. Donne-lui la permission **Envoyer des messages** dans le salon voulu.
-5. La commande **/damall** demande les permissions administrateur.
+Le bot utilise la liste des membres autorisée par Discord pour identifier les personnes ayant demandé ces messages.
 
-Aucun intent privilégié Member/Message Content n'est requis : le bot n'énumère pas tous les membres. Il ne contacte que les utilisateurs qui se sont inscrits via le panneau. Le compteur total s'appuie sur le nombre de membres annoncé par Discord.
-
-Si **GUILD_ID** est renseigné, la commande est synchronisée sur ce serveur au démarrage. Sinon, elle est enregistrée globalement et peut mettre plus longtemps à apparaître.
-
-## Démarrer en local
+## Exécution locale
 
 ~~~
 python -m pip install -r requirements.txt
-DISCORD_TOKEN="ton-token" python bot.py
+DISCORD_TOKEN="ton-token" ENABLE_MEMBER_INTENT=1 python bot.py
 ~~~
 
-Pour conserver les inscriptions localement, le programme utilise par défaut le fichier **data/damall.sqlite3**.
-
-## Confidentialité et limitations
-
-- Seuls les identifiants Discord des membres ayant accepté les annonces sont conservés, avec l'identifiant du serveur.
-- Les membres peuvent supprimer leur inscription à tout moment en cliquant sur **Ne plus recevoir**.
-- Les messages de DM et les campagnes ne sont pas stockés dans la base.
-- Les messages bloqués sont classés comme ignorés, sans tentative pour contourner leurs paramètres de confidentialité.
-- La bibliothèque discord.py gère les limites de requêtes de l'API. Un nombre élevé d'inscrits peut nécessiter du temps.
+Ne publie jamais de token dans GitHub, dans un chat ou dans une capture. La bibliothèque discord.py prend en charge les limites de requêtes imposées par Discord.
