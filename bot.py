@@ -302,6 +302,8 @@ class ConfirmView(discord.ui.View):
             )
 
         campaign = Campaign(self.bot, guild, interaction.user.id, self.message, recipients)
+        # Réservation immédiate pour empêcher deux envois simultanés.
+        self.bot.active_campaigns[guild.id] = campaign
         try:
             panel = await interaction.channel.send(
                 embed=campaign.build_embed(),
@@ -309,13 +311,13 @@ class ConfirmView(discord.ui.View):
                 allowed_mentions=discord.AllowedMentions.none(),
             )
         except (discord.Forbidden, discord.HTTPException):
+            self.bot.active_campaigns.pop(guild.id, None)
             return await interaction.response.send_message(
                 "Le bot doit avoir la permission d'envoyer des messages dans ce salon.",
                 ephemeral=True,
             )
 
         campaign.panel = panel
-        self.bot.active_campaigns[guild.id] = campaign
         await interaction.response.edit_message(
             content="Envoi démarré : " + panel.jump_url,
             embed=None,
@@ -349,7 +351,7 @@ class MessageModal(discord.ui.Modal, title="Rédiger le message privé"):
         guild = interaction.guild
         if guild is None:
             return await interaction.response.send_message("Serveur introuvable.", ephemeral=True)
-        content = str(self.text).strip()
+        content = self.text.value.strip()
         if not content:
             return await interaction.response.send_message("Message vide.", ephemeral=True)
 
@@ -464,6 +466,23 @@ class DMAllBot(discord.Client):
 
 
 bot = DMAllBot()
+
+@bot.tree.error
+async def command_error(interaction: discord.Interaction, error: app_commands.AppCommandError):
+    log.warning("Erreur commande : %r", error)
+    message = (
+        "Cette commande est réservée aux administrateurs."
+        if isinstance(error, app_commands.MissingPermissions)
+        else "Impossible d'exécuter cette action."
+    )
+    try:
+        if interaction.response.is_done():
+            await interaction.followup.send(message, ephemeral=True)
+        else:
+            await interaction.response.send_message(message, ephemeral=True)
+    except discord.HTTPException:
+        pass
+
 
 
 @bot.tree.command(name="damall", description="Ouvrir le panneau d'annonces privées du serveur")
